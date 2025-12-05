@@ -181,6 +181,20 @@ UPROGS=\
 	_usertests\
 	_wc\
 	_zombie\
+	_sleep\
+	_iiitdm\
+	_alloc\
+	_dealloc\
+	_trace\
+	_test\
+	_pingpong\
+	_rl_scheduler\
+	_primes\
+	_countsys\
+	_printcount\
+	_pgtbl\
+	_time\
+	_benchmark\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

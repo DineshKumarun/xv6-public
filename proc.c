@@ -5,6 +5,7 @@
 #include "mmu.h"
 #include "x86.h"
 #include "proc.h"
+#include "pstat.h"
 #include "spinlock.h"
 
 struct {
@@ -82,12 +83,20 @@ allocproc(void)
     if(p->state == UNUSED)
       goto found;
 
+	p->count_mask = 0;
+p->trace_mask = 0;
+for (int i = 0; i < MAXSYSCALL; i++)
+    p->syscall_count[i] = 0;
+
   release(&ptable.lock);
   return 0;
 
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->rtime = 0;
+  p->wtime = 0;
+  p->stime = 0;
 
   release(&ptable.lock);
 
@@ -194,11 +203,16 @@ fork(void)
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
+    
     return -1;
   }
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
+	np->trace_mask = curproc->trace_mask;
+	np->count_mask = curproc->count_mask;
+	for (int i = 0; i < MAXSYSCALL; i++)
+    	np->syscall_count[i] = 0;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -311,6 +325,57 @@ wait(void)
   }
 }
 
+int enforced_pid = -1;
+
+void
+update_proc_stats(void)
+{
+  struct proc *p;
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state == RUNNING)
+      p->rtime++;
+    else if(p->state == RUNNABLE)
+      p->wtime++;
+    else if(p->state == SLEEPING)
+      p->stime++;
+  }
+  release(&ptable.lock);
+}
+
+int
+set_next_process(int pid)
+{
+  enforced_pid = pid;
+  return 0;
+}
+
+int
+get_proc_stats(struct proc_stat *ustats)
+{
+  struct proc *p;
+  struct proc_stat st;
+  int i = 0;
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state != UNUSED){
+      st.pid = p->pid;
+      st.runtime = p->rtime;
+      st.waittime = p->wtime;
+      st.sleeptime = p->stime;
+      st.state = p->state;
+      st.size = p->sz;
+      if(copyout(myproc()->pgdir, (uint)&ustats[i], &st, sizeof(st)) < 0){
+        release(&ptable.lock);
+        return -1;
+      }
+      i++;
+    }
+  }
+  release(&ptable.lock);
+  return i;
+}
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -332,6 +397,26 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+
+    if(enforced_pid > 0){
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(p->pid == enforced_pid && p->state == RUNNABLE){
+          c->proc = p;
+          switchuvm(p);
+          p->state = RUNNING;
+          swtch(&(c->scheduler), p->context);
+          switchkvm();
+          c->proc = 0;
+          enforced_pid = 0;
+          break;
+        }
+      }
+      if(enforced_pid == 0){
+        release(&ptable.lock);
+        continue;
+      }
+    }
+
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
@@ -385,7 +470,7 @@ sched(void)
 void
 yield(void)
 {
-  acquire(&ptable.lock);  //DOC: yieldlock
+  acquire(&ptable	.lock);  //DOC: yieldlock
   myproc()->state = RUNNABLE;
   sched();
   release(&ptable.lock);

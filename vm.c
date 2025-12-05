@@ -385,6 +385,29 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   return 0;
 }
 
+void vmprint(pde_t* kpgdir){
+	cprintf("Page table %p\n", kpgdir);
+	for(int i = 0; i < NPDENTRIES; i++){
+		uint va = i << PDXSHIFT;
+		
+		if(va > KERNBASE) continue;
+		
+		if(kpgdir[i] & PTE_P){
+			uint pa = PTE_ADDR(kpgdir[i]);
+			pte_t *pgtab = (pte_t *)P2V(pa);
+			cprintf(" ..%p: pte %p pa %p\n", va, kpgdir[i], pa);
+			for(int j = 0; j < NPTENTRIES; j++){
+				if(pgtab[j] & PTE_P){
+					uint pa2 = PTE_ADDR(pgtab[j]);
+					cprintf(" .. ..%p: pte %p pa %p\n", (i << PDXSHIFT )| (j << PTXSHIFT), pgtab[j], pa2);
+				}
+			}
+		}
+	}
+	
+}
+
+
 //PAGEBREAK!
 // Blank page.
 //PAGEBREAK!

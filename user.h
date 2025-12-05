@@ -23,6 +23,13 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int trace(int);
+int countsys(int);
+void printcount(void);
+int pgtbl(void);
+struct proc_stat;
+int get_proc_stats(struct proc_stat*);
+int set_next_process(int);
 
 // ulib.c
 int stat(const char*, struct stat*);

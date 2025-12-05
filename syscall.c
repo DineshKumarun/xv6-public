@@ -103,6 +103,12 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
+extern int sys_trace(void);
+extern int sys_countsys(void);
+extern int sys_printcount(void);
+extern int sys_pgtbl(void);
+extern int sys_get_proc_stats(void);
+extern int sys_set_next_process(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -126,6 +132,12 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_trace]	  sys_trace,
+[SYS_countsys] sys_countsys,
+[SYS_printcount] sys_printcount,
+[SYS_pgtbl] sys_pgtbl,
+[SYS_get_proc_stats] sys_get_proc_stats,
+[SYS_set_next_process] sys_set_next_process,
 };
 
 void
@@ -137,6 +149,7 @@ syscall(void)
   num = curproc->tf->eax;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     curproc->tf->eax = syscalls[num]();
+    
   } else {
     cprintf("%d %s: unknown sys call %d\n",
             curproc->pid, curproc->name, num);

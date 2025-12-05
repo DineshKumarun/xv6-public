@@ -1,3 +1,5 @@
+#define MAXSYSCALL  32    // use 32 or NELEM(syscalls) + some slack
+
 // Per-CPU state
 struct cpu {
   uchar apicid;                // Local APIC ID
@@ -49,6 +51,12 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  int trace_mask;			   // Trace mask number
+  int count_mask;
+  int syscall_count[MAXSYSCALL];
+  uint rtime;                  // How long the process has run
+  uint wtime;                  // How long the process has waited
+  uint stime;                  // How long the process has slept
 };
 
 // Process memory is laid out contiguously, low addresses first:

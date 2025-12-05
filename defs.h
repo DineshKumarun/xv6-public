@@ -120,6 +120,10 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+void            update_proc_stats(void);
+int             set_next_process(int);
+struct proc_stat;
+int             get_proc_stats(struct proc_stat*);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -185,6 +189,8 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
+void 			vmprint(pde_t* kpgdir);
+
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
