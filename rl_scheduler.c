@@ -13,14 +13,15 @@ main(int argc, char *argv[])
   
   // RL Parameters for Q-Learning (Bandit)
   // Actions: 0 = Max Wait Time (Fairness), 1 = Min Runtime (Throughput/SJF)
-  int q_val[2] = {0, 0}; // Scaled by 1000
-  int alpha = 100; // Learning rate 0.1
-  int epsilon = 100; // Exploration rate 0.1
+  // We want to learn which policy minimizes the number of active processes (Queue Length).
+  int q_val[2] = {0, 0}; 
+  int alpha = 500;   // Learning rate 0.5 - Learn fast!
+  int epsilon = 10;  // Exploration rate 0.1 (10/100)
   int action = 0;
   int last_action = -1;
   int ticks = 0;
 
-  printf(1, "Starting RL Scheduler Agent...\n");
+  printf(1, "Starting Optimized RL Scheduler Agent (Throughput Focused)...\n");
 
   while(1){
     ticks++;
@@ -30,46 +31,40 @@ main(int argc, char *argv[])
       exit();
     }
 
-    // Calculate Reward: Negative Total Wait Time
-    // We want to minimize wait time, so maximize -WaitTime.
-    // To see improvement, we can look at change in wait time?
-    // Or just absolute value.
-    int total_wait = 0;
+    // NEW REWARD FUNCTION: Minimize Active Processes (Queue Length)
+    // Little's Law: Minimize N -> Minimize Response Time.
+    // Previous logic (Minimize Wait Time) was flawed: picking a long-wait job
+    // "hid" it from the wait-sum by moving it to RUNNING, fooling the agent.
+    // Now we count both RUNNABLE (3) and RUNNING (4).
+    int active_procs = 0;
     for(i=0; i<n; i++){
-      if(stats[i].state == 3){ // RUNNABLE
-        total_wait += stats[i].waittime;
+      if(stats[i].pid > 2 && (stats[i].state == 3 || stats[i].state == 4)){ 
+        active_procs++;
       }
     }
     
-    // Reward calculation (simplified)
-    // If wait time decreased, positive reward.
-    // If wait time increased, negative reward.
-    // But wait time monotonically increases.
-    // We should look at average wait time or rate of increase.
-    // Let's use -total_wait as the signal.
-    int reward = -total_wait;
+    // Reward = Negative Queue Length. 
+    // Agent tries to maximize this -> Minimize Queue Length.
+    int reward = -active_procs * 100; 
 
     // Update Q-value for the *previous* action
     if(last_action != -1){
       // Q[a] = Q[a] + alpha * (Reward - Q[a])
-      // We scale down reward to avoid overflow, just for demo
-      int scaled_reward = reward / 100; 
-      q_val[last_action] = q_val[last_action] + (alpha * (scaled_reward - q_val[last_action])) / 1000;
+      q_val[last_action] = q_val[last_action] + (alpha * (reward - q_val[last_action])) / 1000;
     }
     
     // Select Action (Epsilon-Greedy)
-    // Bias towards Throughput (Action 1) for performance
-    int r = uptime() % 1000;
+    int r = uptime() % 100;
     if(r < epsilon){
       action = (uptime() % 2); // Explore
     } else {
-      if(q_val[1] >= q_val[0]) action = 1; // Prefer Throughput if equal
+      if(q_val[1] >= q_val[0]) action = 1; // Prefer Throughput/SJF if equal
       else action = 0;
     }
 
     // Execute Action
     int best_idx = -1;
-    if(action == 0){ // Max Wait Time
+    if(action == 0){ // Fairness (Max Wait)
       int max_w = -1;
       for(i=0; i<n; i++){
         if(stats[i].state == 3 && stats[i].pid > 2){ 
@@ -79,7 +74,7 @@ main(int argc, char *argv[])
            }
         }
       }
-    } else { // Min Runtime
+    } else { // Throughput (Min Runtime / SJF)
       int min_r = 2147483647;
       for(i=0; i<n; i++){
         if(stats[i].state == 3 && stats[i].pid > 2){
@@ -94,19 +89,18 @@ main(int argc, char *argv[])
     if(best_idx != -1){
       set_next_process(stats[best_idx].pid);
       /*
+      // Debug print occasionally
       if(ticks % 20 == 0) {
-        printf(1, "RL: Action=%s, PID=%d, Reward=%d, Q=[%d, %d]\n", 
-               action==0 ? "Fairness" : "Throughput", 
-               stats[best_idx].pid, 
-               reward, 
-               q_val[0], q_val[1]);
+        printf(1, "RL: Act=%s, Q_Fair=%d, Q_SJF=%d, Active=%d\n", 
+               action==0 ? "Fair" : "SJF", 
+               q_val[0], q_val[1], active_procs);
       }
       */
     }
     
     last_action = action;
 
-    sleep(10); // Run every 10 ticks to reduce overhead
+    sleep(5); // Run more frequently (5 ticks) to catch short jobs
   }
   exit();
 }

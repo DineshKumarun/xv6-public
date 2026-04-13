@@ -1,0 +1,13 @@
+\contentsline {section}{\numberline {1}Introduction}{2}{section.1}%
+\contentsline {section}{\numberline {2}System Architecture}{2}{section.2}%
+\contentsline {section}{\numberline {3}Implementation Details}{2}{section.3}%
+\contentsline {subsection}{\numberline {3.1}1. User-Space RL Agent (\texttt {rl\_scheduler.c})}{2}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}2. Kernel Process Management (\texttt {proc.c})}{3}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}3. Process Structure (\texttt {proc.h})}{3}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}4. Interrupt Handling (\texttt {trap.c})}{3}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}5. System Calls Implementation (\texttt {sysproc.c})}{4}{subsection.3.5}%
+\contentsline {subsection}{\numberline {3.6}6. System Call Registration}{4}{subsection.3.6}%
+\contentsline {subsection}{\numberline {3.7}7. Benchmarking Tools (\texttt {benchmark.c} \& \texttt {time.c})}{5}{subsection.3.7}%
+\contentsline {subsection}{\numberline {3.8}8. Build Configuration (\texttt {Makefile})}{5}{subsection.3.8}%
+\contentsline {section}{\numberline {4}Performance Verification}{6}{section.4}%
+\contentsline {section}{\numberline {5}Conclusion}{6}{section.5}%
