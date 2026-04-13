@@ -11,14 +11,20 @@ main(int argc, char *argv[])
   struct proc_stat stats[MAX_PROC];
   int i;
   
-  // RL Parameters for Q-Learning (Bandit)
+  // RL Parameters for Q-Learning (Contextual MDP)
+  // States: 0 = Low Load (<=2), 1 = Medium Load (<=5), 2 = High Load (>5)
   // Actions: 0 = Max Wait Time (Fairness), 1 = Min Runtime (Throughput/SJF)
-  // We want to learn which policy minimizes the number of active processes (Queue Length).
-  int q_val[2] = {0, 0}; 
+  int q_table[3][2];
+  for(i = 0; i < 3; i++) {
+    q_table[i][0] = 0;
+    q_table[i][1] = 0;
+  }
   int alpha = 500;   // Learning rate 0.5 - Learn fast!
   int epsilon = 10;  // Exploration rate 0.1 (10/100)
   int action = 0;
   int last_action = -1;
+  int current_state = 0;
+  int last_state = -1;
   int ticks = 0;
 
   printf(1, "Starting Optimized RL Scheduler Agent (Throughput Focused)...\n");
@@ -42,15 +48,20 @@ main(int argc, char *argv[])
         active_procs++;
       }
     }
+
+    // Determine Current State (System Load)
+    if (active_procs <= 2) current_state = 0;
+    else if (active_procs <= 5) current_state = 1;
+    else current_state = 2;
     
     // Reward = Negative Queue Length. 
     // Agent tries to maximize this -> Minimize Queue Length.
     int reward = -active_procs * 100; 
 
-    // Update Q-value for the *previous* action
-    if(last_action != -1){
-      // Q[a] = Q[a] + alpha * (Reward - Q[a])
-      q_val[last_action] = q_val[last_action] + (alpha * (reward - q_val[last_action])) / 1000;
+    // Update Q-value for the *previous* state and action
+    if(last_action != -1 && last_state != -1){
+      // Q[s][a] = Q[s][a] + alpha * (Reward - Q[s][a])
+      q_table[last_state][last_action] = q_table[last_state][last_action] + (alpha * (reward - q_table[last_state][last_action])) / 1000;
     }
     
     // Select Action (Epsilon-Greedy)
@@ -58,7 +69,7 @@ main(int argc, char *argv[])
     if(r < epsilon){
       action = (uptime() % 2); // Explore
     } else {
-      if(q_val[1] >= q_val[0]) action = 1; // Prefer Throughput/SJF if equal
+      if(q_table[current_state][1] >= q_table[current_state][0]) action = 1; // Prefer Throughput/SJF if equal
       else action = 0;
     }
 
@@ -91,16 +102,18 @@ main(int argc, char *argv[])
       /*
       // Debug print occasionally
       if(ticks % 20 == 0) {
-        printf(1, "RL: Act=%s, Q_Fair=%d, Q_SJF=%d, Active=%d\n", 
+        printf(1, "RL: State=%d, Act=%s, Q_Fair=%d, Q_SJF=%d, Active=%d\n", 
+               current_state,
                action==0 ? "Fair" : "SJF", 
-               q_val[0], q_val[1], active_procs);
+               q_table[current_state][0], q_table[current_state][1], active_procs);
       }
       */
     }
     
     last_action = action;
+    last_state = current_state;
 
-    sleep(5); // Run more frequently (5 ticks) to catch short jobs
+    sleep(1); // Poll incredibly fast to micromanage jobs
   }
   exit();
 }

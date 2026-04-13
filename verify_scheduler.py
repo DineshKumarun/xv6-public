@@ -28,12 +28,12 @@ def run_benchmark(use_rl=False):
         
         # Expect prompt returning. Benchmark might be slow.
         # CPU ops are 200M. In QUX (Emulation), this might take a while.
-        child.expect(r'\$ ', timeout=120)
+        child.expect(r'\$ ', timeout=500)
         
         output = child.before
         
         # Look for "Real Time: X ticks"
-        match = re.search(r'Real Time: (\d+) ticks', output, re.IGNORECASE)
+        match = re.search(r'Average Process Turnaround Time: (\d+) ticks', output, re.IGNORECASE)
         if match:
              ticks = int(match.group(1))
              print(f"\n[{'RL' if use_rl else 'Baseline'}] Result: {ticks} ticks")

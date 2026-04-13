@@ -3,55 +3,21 @@
 #include "user.h"
 #include "fcntl.h"
 
-#define N_CPU_PROCS 2
-#define N_IO_PROCS 2
-#define CPU_OPS 200000000
-#define IO_OPS 1000
+#define N_MASSIVE 1
+#define N_MICRO 20
+#define MASSIVE_OPS 400000000
+#define MICRO_OPS 30000000
 
-void cpu_task(int id) {
+void cpu_task(int id, int ops) {
   int i;
   volatile int x = 0; // volatile to prevent optimization
-  // printf(1, "CPU Task %d started\n", id);
-  for(i = 0; i < CPU_OPS; i++) {
+  for(i = 0; i < ops; i++) {
     x = x + 1;
     if(x % 1000000 == 0) {
-       // Just to burn cycles
        x = x - 1;
        x = x + 1;
     }
   }
-  // printf(1, "CPU Task %d finished\n", id);
-  exit();
-}
-
-void io_task(int id) {
-  int i, fd;
-  char name[16];
-  char data[512];
-  
-  // printf(1, "IO Task %d started\n", id);
-  
-  // Create a unique filename
-  name[0] = 't';
-  name[1] = 'e';
-  name[2] = 's';
-  name[3] = 't';
-  name[4] = id + '0';
-  name[5] = 0;
-
-  for(i = 0; i < IO_OPS; i++) {
-    fd = open(name, O_CREATE | O_RDWR);
-    if(fd >= 0) {
-      write(fd, data, sizeof(data));
-      close(fd);
-    }
-    // Delete and recreate to force metadata updates
-    if(i % 10 == 0) {
-      unlink(name);
-    }
-  }
-  unlink(name);
-  // printf(1, "IO Task %d finished\n", id);
   exit();
 }
 
@@ -59,29 +25,35 @@ int main(int argc, char *argv[]) {
   int i;
   int pid;
 
-  printf(1, "Starting Benchmark (CPU=%d, IO=%d)...\n", N_CPU_PROCS, N_IO_PROCS);
+  printf(1, "Starting Asymmetric Benchmark (1 Massive, 20 Micro)...\n");
 
-  // Fork CPU tasks
-  for(i = 0; i < N_CPU_PROCS; i++) {
+  // Fork Massive task
+  for(i = 0; i < N_MASSIVE; i++) {
     pid = fork();
     if(pid == 0) {
-      cpu_task(i);
+      cpu_task(i, MASSIVE_OPS);
     }
   }
 
-  // Fork IO tasks
-  for(i = 0; i < N_IO_PROCS; i++) {
+  // Fork Micro tasks
+  for(i = 0; i < N_MICRO; i++) {
     pid = fork();
     if(pid == 0) {
-      io_task(i);
+      cpu_task(N_MASSIVE + i, MICRO_OPS);
     }
   }
 
-  // Wait for all children
-  for(i = 0; i < N_CPU_PROCS + N_IO_PROCS; i++) {
+  int start = uptime();
+  
+  // Wait for all children and calculate turnaround time
+  int total_turnaround = 0;
+  for(i = 0; i < N_MASSIVE + N_MICRO; i++) {
     wait();
+    int turn = uptime() - start;
+    total_turnaround += turn;
   }
 
-  printf(1, "Benchmark Finished\n");
+  printf(1, "Total Benchmark Time: %d ticks\n", uptime() - start);
+  printf(1, "Average Process Turnaround Time: %d ticks\n", total_turnaround / (N_MASSIVE + N_MICRO));
   exit();
 }
