@@ -58,10 +58,22 @@ main(int argc, char *argv[])
     // Agent tries to maximize this -> Minimize Queue Length.
     int reward = -active_procs * 100; 
 
-    // Update Q-value for the *previous* state and action
+    int gamma = 800; // Discount factor 0.8 (800/1000)
+
+    // Update Q-value for the *previous* state and action using the Full MDP Formula
     if(last_action != -1 && last_state != -1){
-      // Q[s][a] = Q[s][a] + alpha * (Reward - Q[s][a])
-      q_table[last_state][last_action] = q_table[last_state][last_action] + (alpha * (reward - q_table[last_state][last_action])) / 1000;
+      // Find max Q(s', a') for the CURRENT state (which is s')
+      int max_q_next = q_table[current_state][0];
+      if (q_table[current_state][1] > max_q_next) {
+         max_q_next = q_table[current_state][1];
+      }
+      
+      // Standard Formula: Q(s,a) = Q(s,a) + alpha * [ Reward + gamma * max_Q(s') - Q(s,a) ]
+      // Handled with integer math (/1000)
+      int next_future_reward = (gamma * max_q_next) / 1000;
+      int temporal_error = reward + next_future_reward - q_table[last_state][last_action];
+      
+      q_table[last_state][last_action] = q_table[last_state][last_action] + (alpha * temporal_error) / 1000;
     }
     
     // Select Action (Epsilon-Greedy)
